@@ -11,3 +11,9 @@ arrows     Change view angle
 w/s        Zoom in and out
 0          Reset view angle
 ESC        Exit
+
+First Person Controls:
+Rotate a/d
+Move w/s
+
+This took me about 3 hours.

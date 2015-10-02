@@ -1,5 +1,5 @@
 /*  Matt Binsfeld
- *  Homework 3
+ *  Homework 4
  *
  *  Draw a scene with several houses
  *
@@ -7,9 +7,12 @@
  *  m          Toggle between perspective and orthogonal
  *  +/-        Changes field of view for perspective
  *  arrows     Change view angle
- *  w/s  Zoom in and out
+ *  pageup/pagedown  Zoom in and out
  *  0          Reset view angle
  *  ESC        Exit
+ *  First Person Controls:
+ *  Rotate a/d
+ *  Move w/s
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +33,16 @@ int ph=0;         //  Elevation of view angle
 int fov=55;       //  Field of view (for perspective)
 double asp=1;     //  Aspect ratio
 double dim=5.0;   //  Size of world
+
+
+//first person control vars
+float m_x, m_y, m_z;   // Position
+float m_lx, m_ly, m_lz; // Direction vector of where we are looking at
+float m_yaw, m_pitch; // Various rotation angles
+float m_strafe_lx, m_strafe_lz; // Always 90 degree to direction vector
+
+//first person camera functions
+
 
 //  Macro for sin & cos in degrees
 #define Cos(th) cos(3.1415927/180*(th))
@@ -226,8 +239,25 @@ void display()
    glEnable(GL_DEPTH_TEST);
    //  Undo previous transformations
    glLoadIdentity();
+   
+   //first person mode
+   if(mode == 2){
+      // Camera parameter according to Riegl's co-ordinate system
+      // x/y for flat, z for height
+      m_lx = cos(m_yaw) * cos(m_pitch);
+      m_ly = sin(m_pitch);
+      m_lz = sin(m_yaw) * cos(m_pitch);
+
+      m_strafe_lx = cos(m_yaw - M_PI_2);
+      m_strafe_lz = sin(m_yaw - M_PI_2);
+
+      glMatrixMode(GL_MODELVIEW);
+      glLoadIdentity();
+      gluLookAt(m_x, m_y, m_z, m_x + m_lx, m_y + m_ly, m_z + m_lz, 0.0,1.0,0.0);
+   }
+
    //  Perspective - set eye position
-   if (mode)
+   if (mode == 1)
    {
       double Ex = -2*dim*Sin(th)*Cos(ph);
       double Ey = +2*dim        *Sin(ph);
@@ -235,7 +265,7 @@ void display()
       gluLookAt(Ex,Ey,Ez , 0,0,0 , 0,Cos(ph),0);
    }
    //  Orthogonal - set world orientation
-   else
+   if (mode == 0)
    {
       glRotatef(ph,1,0,0);
       glRotatef(th,0,1,0);
@@ -255,9 +285,23 @@ void display()
    house(0,0,-3,1.2,.5,.5,0);
    house(3,0,0,.5,.5,.3,270);
 
+   // Draw ground on which houses sit
+   glBegin(GL_QUADS);
+   glColor3f(0,.5,0);
+   glVertex3f(-5,-.5,-5);
+   glVertex3f(-5,-.5,5);
+   glVertex3f(5,-.5,5);
+   glVertex3f(5,-.5,-5);
+   glEnd();
+
    //  Display parameters
    glWindowPos2i(5,5);
-   Print("Angle=%d,%d  Dim=%.1f FOV=%d Projection=%s",th,ph,dim,fov,mode?"Perpective":"Orthogonal");
+   if(mode == 0)
+      Print("Angle=%d,%d  Dim=%.1f FOV=%d Projection=Orthogonal",th,ph,dim,fov);
+   if(mode == 1)
+      Print("Angle=%d,%d  Dim=%.1f FOV=%d Projection=Perspective",th,ph,dim,fov);
+   if(mode == 2)
+      Print("Angle=%d,%d  Dim=%.1f FOV=%d Projection=FirstPerson",th,ph,dim,fov);
    //  Render the scene and make it visible
    glFlush();
    glutSwapBuffers();
@@ -280,6 +324,13 @@ void special(int key,int x,int y)
    //  Down arrow key - decrease elevation by 5 degrees
    else if (key == GLUT_KEY_DOWN)
       ph -= 5;
+
+   //  PageUp key - increase dim
+   else if (key == GLUT_KEY_PAGE_UP)
+      dim += 0.1;
+   //  PageDown key - decrease dim
+   else if (key == GLUT_KEY_PAGE_DOWN && dim>1)
+      dim -= 0.1;
    
    //  Keep angles to +/-360 degrees
    th %= 360;
@@ -294,9 +345,12 @@ void special(int key,int x,int y)
  */
 void key(unsigned char ch,int x,int y)
 {
+   float angle = .05;
+   float incr = .05;
    //  Exit on ESC
    if (ch == 27)
       exit(0);
+
 
 
 
@@ -315,13 +369,33 @@ void key(unsigned char ch,int x,int y)
       fov--;
    else if (ch == '+' && ch<179)
       fov++;
+   if(mode == 2){
+      if(ch == 'w' || ch == 'W') {
+         float lx = cos(m_yaw)*cos(m_pitch);
+         float ly = sin(m_pitch);
+         float lz = sin(m_yaw)*cos(m_pitch);
+         m_x = m_x + incr*lx;
+         m_y = m_y + incr*ly;
+         m_z = m_z + incr*lz;
+         //Refresh();
+     }
+     else if(ch == 's' || ch == 'S') {
+         float lx = cos(m_yaw)*cos(m_pitch);
+         float ly = sin(m_pitch);
+         float lz = sin(m_yaw)*cos(m_pitch);
+         m_x = m_x - incr*lx;
+         m_y = m_y - incr*ly;
+         m_z = m_z - incr*lz;
+     }
+     else if(ch == 'a' || ch == 'A'){
+         m_yaw -= angle;
+     }
+     else if(ch == 'd' || ch == 'D'){
+         m_yaw += angle;
+     }
 
-   //  PageUp key - increase dim
-   else if (ch == 's')
-      dim += 0.1;
-   //  PageDown key - decrease dim
-   else if (ch == 'w' && dim>1)
-      dim -= 0.1;
+   }
+
 
    Project();
    //  Tell GLUT it is necessary to redisplay the scene
